@@ -259,21 +259,27 @@ app.post("/api/beta-auth/verify", async (req, res) => {
 
 async function start() {
   await initDb();
+  const server = app.listen(PORT, "0.0.0.0", () => {
+    console.log("ShuzaGram Beta API listening on port " + PORT);
+  });
   const domain = process.env.KOYEB_PUBLIC_DOMAIN;
   if (!domain) {
+    server.close();
     throw new Error("KOYEB_PUBLIC_DOMAIN is missing; configure this service as a public Koyeb Web Service");
   }
   const webhookUrl = "https://" + domain + "/telegram/webhook";
-  await telegram("setWebhook", {
-    url: webhookUrl,
-    secret_token: process.env.WEBHOOK_SECRET,
-    allowed_updates: ["message", "callback_query"],
-    drop_pending_updates: false,
-  });
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log("ShuzaGram Beta API listening on port " + PORT);
+  try {
+    await telegram("setWebhook", {
+      url: webhookUrl,
+      secret_token: process.env.WEBHOOK_SECRET,
+      allowed_updates: ["message", "callback_query"],
+      drop_pending_updates: false,
+    });
     console.log("Telegram webhook registered at " + webhookUrl);
-  });
+  } catch (error) {
+    server.close();
+    throw error;
+  }
 }
 
 start().catch((error) => {
