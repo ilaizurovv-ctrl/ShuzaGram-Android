@@ -4757,6 +4757,37 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                 return;
             }
 
+            if (currentParams != null && currentParams.getBoolean("beta_auth")) {
+                nextPressed = true;
+                needShowProgress(0);
+                BetaAuthApi.verify("+" + requestPhone, code, new BetaAuthApi.Callback() {
+                    @Override
+                    public void onResult(JSONObject result, String error) {
+                        AndroidUtilities.runOnUIThread(() -> {
+                            nextPressed = false;
+                            needHideProgress(false);
+                            if (error != null) {
+                                onFieldError(codeFieldContainer, false);
+                                needShowAlert(getString(R.string.RestorePasswordNoEmailTitle), error);
+                                return;
+                            }
+                            String token = result.optString("access_token");
+                            ApplicationLoader.applicationContext.getSharedPreferences("shuzagram_beta_auth", Context.MODE_PRIVATE)
+                                .edit().putString("access_token", token)
+                                .putString("phone", "+" + requestPhone)
+                                .putLong("expires_at", System.currentTimeMillis() + result.optLong("expires_in", 0) * 1000L)
+                                .apply();
+                            new AlertDialog.Builder(getParentActivity())
+                                .setTitle("ShuzaGram Beta")
+                                .setMessage("Тестовый код подтверждён. Beta-сессия создана. Это отдельный тестовый вход: он не подключает аккаунт к сети Telegram и не открывает обычные чаты.")
+                                .setPositiveButton(getString(R.string.OK), null)
+                                .show();
+                        });
+                    }
+                });
+                return;
+            }
+
             nextPressed = true;
             if (currentType == AUTH_TYPE_FRAGMENT_SMS) {
                 NotificationCenter.getGlobalInstance().removeObserver(this, NotificationCenter.didReceiveSmsCode);
@@ -9414,37 +9445,6 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
             code = codeField.getText().toString();
             if (code.length() == 0) {
                 onInputError(false);
-                return;
-            }
-
-            if (currentParams != null && currentParams.getBoolean("beta_auth")) {
-                nextPressed = true;
-                needShowProgress(0);
-                BetaAuthApi.verify("+" + requestPhone, code, new BetaAuthApi.Callback() {
-                    @Override
-                    public void onResult(JSONObject result, String error) {
-                        AndroidUtilities.runOnUIThread(() -> {
-                            nextPressed = false;
-                            needHideProgress(false);
-                            if (error != null) {
-                                onInputError(false);
-                                needShowAlert(getString(R.string.RestorePasswordNoEmailTitle), error);
-                                return;
-                            }
-                            String token = result.optString("access_token");
-                            ApplicationLoader.applicationContext.getSharedPreferences("shuzagram_beta_auth", Context.MODE_PRIVATE)
-                                .edit().putString("access_token", token)
-                                .putString("phone", "+" + requestPhone)
-                                .putLong("expires_at", System.currentTimeMillis() + result.optLong("expires_in", 0) * 1000L)
-                                .apply();
-                            new AlertDialog.Builder(getParentActivity())
-                                .setTitle("ShuzaGram Beta")
-                                .setMessage("Тестовый код подтверждён. Beta-сессия создана. Это отдельный тестовый вход: он не подключает аккаунт к сети Telegram и не открывает обычные чаты.")
-                                .setPositiveButton(getString(R.string.OK), null)
-                                .show();
-                        });
-                    }
-                });
                 return;
             }
 
