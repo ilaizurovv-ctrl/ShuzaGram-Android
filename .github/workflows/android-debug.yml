@@ -50,6 +50,17 @@ jobs:
               media.parent.mkdir(parents=True, exist_ok=True)
               subprocess.run(["git", "clone", "--depth", "1", "https://github.com/TomFamily/androidX-media.git", str(media)], check=True)
               subprocess.run(["git", "-C", str(media), "submodule", "update", "--init", "--recursive"], check=True)
+
+          # The upstream Media3 common module must use full Gradle project paths
+          # when Media3 is included under a nested project prefix.
+          common_build = media / "libraries/common/build.gradle"
+          common_source = common_build.read_text()
+          old = "implementation project(':' + it.name)"
+          new = "implementation project(it.path)"
+          if old in common_source:
+              common_build.write_text(common_source.replace(old, new))
+          elif new not in common_source:
+              raise SystemExit("Could not apply nested Media3 project-path compatibility fix")
           PY
 
       - name: Set up Java
