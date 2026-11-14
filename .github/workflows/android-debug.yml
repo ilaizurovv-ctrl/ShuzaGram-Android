@@ -210,6 +210,36 @@ jobs:
           """
               cpp_source = cpp_source.replace(end_marker, accessors + end_marker, 1)
           context_cpp.write_text(cpp_source)
+
+          # The pinned tgcalls Peer Descriptor reports one audio level, while
+          # this app's JNI callback still accepts the legacy two-value array.
+          # Preserve the JNI contract and populate the available level.
+          voip_jni = pathlib.Path("TMessagesProj/jni/voip/org_telegram_messenger_voip_Instance.cpp")
+          voip_source = voip_jni.read_text()
+          old_audio_callback = """            .audioLevelsUpdated = [platformContext](float myAudioLevel, float audioLevel) {
+                tgvoip::jni::DoWithJNI([platformContext, myAudioLevel, audioLevel](JNIEnv *env) {
+                    jintArray intArray = nullptr;
+                    jfloatArray floatArray = env->NewFloatArray(2);
+                    jbooleanArray boolArray = nullptr;
+
+                    jfloat floatFill[2];
+                    floatFill[0] = myAudioLevel;
+                    floatFill[1] = audioLevel;
+"""
+          new_audio_callback = """            .audioLevelUpdated = [platformContext](float audioLevel) {
+                tgvoip::jni::DoWithJNI([platformContext, audioLevel](JNIEnv *env) {
+                    jintArray intArray = nullptr;
+                    jfloatArray floatArray = env->NewFloatArray(2);
+                    jbooleanArray boolArray = nullptr;
+
+                    jfloat floatFill[2];
+                    floatFill[0] = audioLevel;
+                    floatFill[1] = 0.0f;
+"""
+          if old_audio_callback in voip_source:
+              voip_jni.write_text(voip_source.replace(old_audio_callback, new_audio_callback, 1))
+          elif new_audio_callback not in voip_source:
+              raise SystemExit("Could not adapt legacy JNI audio-level callback to pinned tgcalls API")
           replace_once("AndroidInterface.cpp",
               "std::function<void(VideoState)> stateUpdated, std::shared_ptr<PlatformContext> platformContext) {",
               "std::function<void(VideoState)> stateUpdated, std::function<void(PlatformCaptureInfo)> captureInfoUpdated, std::shared_ptr<PlatformContext> platformContext, std::pair<int, int> &outResolution) {")
