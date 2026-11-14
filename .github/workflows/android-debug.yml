@@ -119,14 +119,8 @@ jobs:
           prisma_cmake_source = prisma_cmake.read_text()
           old_overrides = "foreach(source IN ITEMS Highlight.cpp Highlight.h SyntaxHighlighter.cpp)"
           new_overrides = "foreach(source IN ITEMS Highlight.cpp Highlight.h)"
-          prisma_cmake_source, override_count = re.subn(
-              r"foreach\\(source IN ITEMS Highlight\\.cpp Highlight\\.h\\s+SyntaxHighlighter\\.cpp\\)",
-              new_overrides,
-              prisma_cmake_source,
-              count=1,
-          )
-          if override_count == 1:
-              prisma_cmake.write_text(prisma_cmake_source)
+          if old_overrides in prisma_cmake_source:
+              prisma_cmake.write_text(prisma_cmake_source.replace(old_overrides, new_overrides, 1))
           elif new_overrides not in prisma_cmake_source:
               raise SystemExit("Could not remove the incompatible local Prisma SyntaxHighlighter.cpp override")
           # Guard against stale CMake copies from a previous configure in the same workspace.
