@@ -6,7 +6,7 @@ This is a **separate test identity system**. It does not authenticate users with
 
 - A user sends `/stars` to `@ShuzaGramLoginBot`.
 - The bot shows **📱 Получить номер**.
-- The backend assigns a stable, unique synthetic number to that Telegram account. Numbers are generated as `+7` followed by a monotonically increasing 10-digit sequence (for example, `+70000000001`). They are deliberately non-routable test identifiers, not phone lines.
+- The backend assigns a stable, unique synthetic number to that Telegram account. Numbers use the display format `+7 904 XXX-XX-XX` (for example, `+79041234567`) with a random seven-digit suffix. They are synthetic Beta test identifiers, not provisioned phone lines; the `904` prefix is also used in real numbering, so these identifiers must not be used to call or message anyone.
 - The bot sends a six-digit one-time code in the same private Telegram chat.
 - The code expires after 5 minutes, is single-use, and is throttled to one issuance per minute. Verification locks the OTP row and allows at most five attempts.
 - The Android Beta test-login UI can POST `{ "phone": "+70000000001", "code": "123456" }` to `/api/beta-auth/verify`. A successful response returns a separate Beta test session token. It is not a Telegram account session.
