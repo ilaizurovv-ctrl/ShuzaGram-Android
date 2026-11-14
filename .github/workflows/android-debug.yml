@@ -41,8 +41,11 @@ jobs:
                   print(f"Cloning {path} from {url}", flush=True)
                   subprocess.run(["git", "clone", "--depth", "1", url, path], check=True)
               if path == "TMessagesProj/jni/tgcalls":
-                  subprocess.run(["git", "-C", path, "fetch", "--depth", "1", "origin", "dev/android"], check=True)
-                  subprocess.run(["git", "-C", path, "checkout", "-B", "dev/android", "FETCH_HEAD"], check=True)
+                  # Pin the last tgcalls revision that contains every source
+                  # referenced by this ShuzaGram revision's VoIP CMakeLists.
+                  tgcalls_commit = "5f1c70c59003f41f9f579277cb5a7d61061a0de7"
+                  subprocess.run(["git", "-C", path, "fetch", "--depth", "1", "origin", tgcalls_commit], check=True)
+                  subprocess.run(["git", "-C", path, "checkout", "--detach", "FETCH_HEAD"], check=True)
               subprocess.run(["git", "-C", path, "submodule", "update", "--init", "--recursive"], check=True)
 
           media = pathlib.Path("TMessagesProj_Modules/media")
