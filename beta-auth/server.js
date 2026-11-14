@@ -86,7 +86,7 @@ async function getOrCreateUser(telegramId) {
 
       // Replace the old sequential placeholder assigned by earlier beta builds.
       const currentPhone = existing.rows[0].phone;
-      if (/^\\+700000000\\d$/.test(currentPhone)) {
+      if (/^\\+70{9}\\d$/.test(currentPhone)) {
         const client = await pool.connect();
         try {
           await client.query("BEGIN");
