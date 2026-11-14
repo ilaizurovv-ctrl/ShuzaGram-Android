@@ -233,7 +233,7 @@ app.post("/telegram/webhook", async (req, res) => {
 
 app.post("/api/beta-auth/request-code", async (req, res) => {
   const phone = String(req.body?.phone || "").trim();
-  if (!/^\\+7904\\d{7}$/.test(phone)) {
+  if (!/^\+7904\d{7}$/.test(phone)) {
     return res.status(400).json({ error: "invalid_phone" });
   }
 
@@ -256,7 +256,7 @@ app.post("/api/beta-auth/request-code", async (req, res) => {
       await telegram("sendMessage", {
         chat_id: telegramId,
         text: "Код подтверждения ShuzaGram Beta: " + issued.code +
-          "\\n\\nКод действует 5 минут и используется один раз. Если вы не запрашивали вход, просто проигнорируйте это сообщение.",
+          "\n\nКод действует 5 минут и используется один раз. Если вы не запрашивали вход, просто проигнорируйте это сообщение.",
       });
     } catch (sendError) {
       await pool.query(
