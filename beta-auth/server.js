@@ -262,10 +262,10 @@ async function start() {
   const server = app.listen(PORT, "0.0.0.0", () => {
     console.log("ShuzaGram Beta API listening on port " + PORT);
   });
-  const domain = process.env.KOYEB_PUBLIC_DOMAIN;
+  const domain = process.env.RENDER_EXTERNAL_HOSTNAME || process.env.KOYEB_PUBLIC_DOMAIN;
   if (!domain) {
     server.close();
-    throw new Error("KOYEB_PUBLIC_DOMAIN is missing; configure this service as a public Koyeb Web Service");
+    throw new Error("RENDER_EXTERNAL_HOSTNAME (Render) or KOYEB_PUBLIC_DOMAIN (Koyeb) is required");
   }
   const webhookUrl = "https://" + domain + "/telegram/webhook";
   try {
