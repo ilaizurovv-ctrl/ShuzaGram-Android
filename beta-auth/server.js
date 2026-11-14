@@ -47,34 +47,14 @@ async function telegram(method, payload = {}) {
 }
 
 async function initDb() {
-  await pool.query(`
-    CREATE SEQUENCE IF NOT EXISTS beta_phone_seq START 1;
-    CREATE TABLE IF NOT EXISTS beta_test_users (
-      id BIGSERIAL PRIMARY KEY,
-      telegram_id BIGINT UNIQUE NOT NULL,
-      phone TEXT UNIQUE NOT NULL,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      last_code_sent_at TIMESTAMPTZ
-    );
-    CREATE TABLE IF NOT EXISTS beta_test_otps (
-      id BIGSERIAL PRIMARY KEY,
-      phone TEXT NOT NULL REFERENCES beta_test_users(phone) ON DELETE CASCADE,
-      code_hash TEXT NOT NULL,
-      expires_at TIMESTAMPTZ NOT NULL,
-      attempts INTEGER NOT NULL DEFAULT 0,
-      used_at TIMESTAMPTZ,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    );
-    CREATE INDEX IF NOT EXISTS beta_test_otps_phone_created
-      ON beta_test_otps(phone, created_at DESC);
-    CREATE TABLE IF NOT EXISTS beta_test_sessions (
-      id BIGSERIAL PRIMARY KEY,
-      phone TEXT NOT NULL REFERENCES beta_test_users(phone) ON DELETE CASCADE,
-      token_hash TEXT UNIQUE NOT NULL,
-      expires_at TIMESTAMPTZ NOT NULL,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    );
-  `);
+  const schema = [
+    "CREATE SEQUENCE IF NOT EXISTS beta_phone_seq START 1",
+    "CREATE TABLE IF NOT EXISTS beta_test_users (id BIGSERIAL PRIMARY KEY, telegram_id BIGINT UNIQUE NOT NULL, phone TEXT UNIQUE NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), last_code_sent_at TIMESTAMPTZ)",
+    "CREATE TABLE IF NOT EXISTS beta_test_otps (id BIGSERIAL PRIMARY KEY, phone TEXT NOT NULL REFERENCES beta_test_users(phone) ON DELETE CASCADE, code_hash TEXT NOT NULL, expires_at TIMESTAMPTZ NOT NULL, attempts INTEGER NOT NULL DEFAULT 0, used_at TIMESTAMPTZ, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())",
+    "CREATE INDEX IF NOT EXISTS beta_test_otps_phone_created ON beta_test_otps(phone, created_at DESC)",
+    "CREATE TABLE IF NOT EXISTS beta_test_sessions (id BIGSERIAL PRIMARY KEY, phone TEXT NOT NULL REFERENCES beta_test_users(phone) ON DELETE CASCADE, token_hash TEXT UNIQUE NOT NULL, expires_at TIMESTAMPTZ NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+  ].join("; ");
+  await pool.query(schema);
 }
 
 async function getOrCreateUser(telegramId) {
