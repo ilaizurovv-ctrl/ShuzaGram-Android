@@ -9,7 +9,7 @@ jobs:
   diagnostic:
     runs-on: ubuntu-latest
     steps:
-      - name: Confirm Actions runner starts
-        run: echo "GitHub Actions runner started"
-
-# Trigger diagnostic after workflow is present on the default branch
+      - uses: actions/checkout@v4
+      - name: Parse Android build workflow YAML
+        run: |
+          ruby -e 'require "yaml"; YAML.parse_file(".github/workflows/android-debug.yml"); puts "YAML syntax OK"'
