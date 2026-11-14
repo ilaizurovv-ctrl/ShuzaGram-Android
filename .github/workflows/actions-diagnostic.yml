@@ -10,6 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Parse Android build workflow YAML
+      - name: Show YAML error context
         run: |
-          ruby -e 'require "yaml"; YAML.parse_file(".github/workflows/android-debug.yml"); puts "YAML syntax OK"'
+          nl -ba .github/workflows/android-debug.yml | sed -n '220,238p'
+          ruby -e 'require "yaml"; YAML.parse_file(".github/workflows/android-debug.yml")'
