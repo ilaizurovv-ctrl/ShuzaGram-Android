@@ -9,10 +9,11 @@ for (const key of required) {
     process.exit(1);
   }
 }
-if (!/^[A-Za-z0-9_-]{1,256}$/.test(process.env.WEBHOOK_SECRET)) {
-  console.error("WEBHOOK_SECRET must contain 1-256 letters, digits, underscores, or hyphens");
+if (process.env.WEBHOOK_SECRET.length < 16) {
+  console.error("WEBHOOK_SECRET must be at least 16 characters");
   process.exit(1);
 }
+const TELEGRAM_WEBHOOK_SECRET = sha256(process.env.WEBHOOK_SECRET);
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -161,7 +162,7 @@ async function handleCallback(update) {
 
 function validWebhookSecret(received) {
   if (typeof received !== "string") return false;
-  const expected = Buffer.from(process.env.WEBHOOK_SECRET);
+  const expected = Buffer.from(TELEGRAM_WEBHOOK_SECRET);
   const actual = Buffer.from(received);
   return expected.length === actual.length && crypto.timingSafeEqual(expected, actual);
 }
@@ -251,7 +252,7 @@ async function start() {
   try {
     await telegram("setWebhook", {
       url: webhookUrl,
-      secret_token: process.env.WEBHOOK_SECRET,
+      secret_token: TELEGRAM_WEBHOOK_SECRET,
       allowed_updates: ["message", "callback_query"],
       drop_pending_updates: false,
     });
