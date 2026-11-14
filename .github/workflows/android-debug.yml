@@ -226,7 +226,7 @@ jobs:
                     jfloat floatFill[2];
                     floatFill[0] = myAudioLevel;
                     floatFill[1] = audioLevel;
-"""
+          """
           new_audio_callback = """            .audioLevelUpdated = [platformContext](float audioLevel) {
                 tgvoip::jni::DoWithJNI([platformContext, audioLevel](JNIEnv *env) {
                     jintArray intArray = nullptr;
@@ -236,7 +236,7 @@ jobs:
                     jfloat floatFill[2];
                     floatFill[0] = audioLevel;
                     floatFill[1] = 0.0f;
-"""
+          """
           if old_audio_callback in voip_source:
               voip_jni.write_text(voip_source.replace(old_audio_callback, new_audio_callback, 1))
           elif new_audio_callback not in voip_source:
