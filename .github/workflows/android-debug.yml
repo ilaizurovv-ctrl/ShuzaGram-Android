@@ -48,7 +48,7 @@ jobs:
                   import shutil
                   shutil.rmtree(media)
               media.parent.mkdir(parents=True, exist_ok=True)
-              subprocess.run(["git", "clone", "--depth", "1", "https://github.com/Arseny271/media.git", str(media)], check=True)
+              subprocess.run(["git", "clone", "--depth", "1", "https://github.com/TomFamily/androidX-media.git", str(media)], check=True)
               subprocess.run(["git", "-C", str(media), "submodule", "update", "--init", "--recursive"], check=True)
           PY
 
