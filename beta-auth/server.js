@@ -125,7 +125,7 @@ async function issueCode(telegramId) {
     return { phone, throttled: true };
   }
 
-  const code = String(crypto.randomInt(0, 1000000)).padStart(6, "0");
+  const code = String(crypto.randomInt(0, 100000)).padStart(5, "0");
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
@@ -276,7 +276,7 @@ app.post("/api/beta-auth/request-code", async (req, res) => {
 app.post("/api/beta-auth/verify", async (req, res) => {
   const phone = String(req.body?.phone || "").trim();
   const code = String(req.body?.code || "").trim();
-  if (!/^\+7904\d{7}$/.test(phone) || !/^\d{6}$/.test(code)) {
+  if (!/^\+7904\d{7}$/.test(phone) || !/^\d{5}$/.test(code)) {
     return res.status(400).json({ error: "invalid_input" });
   }
 
