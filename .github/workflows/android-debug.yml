@@ -91,6 +91,40 @@ jobs:
               attributes.write_text(attributes_source.replace(modern, compatible, 1))
           elif compatible not in attributes_source:
               raise SystemExit("Could not locate Abseil ABSL_DEPRECATED definition")
+
+          # Rebuild Prisma's C++ core from the checked-out source. The bundled
+          # libprisma.a does not export the tokenize() overload used by this bridge.
+          native_cmake = pathlib.Path("TMessagesProj/jni/CMakeLists.txt")
+          native_source = native_cmake.read_text()
+          imported_prisma = """add_library(prisma STATIC IMPORTED)
+          set_target_properties(prisma PROPERTIES IMPORTED_LOCATION ${CMAKE_HOME_DIRECTORY}/prebuild/lib/${ANDROID_ABI}/libprisma.a)"""
+          if imported_prisma in native_source:
+              native_source = native_source.replace(imported_prisma, "add_subdirectory(prisma)", 1)
+              native_cmake.write_text(native_source)
+          elif "add_subdirectory(prisma)" not in native_source:
+              raise SystemExit("Could not switch Prisma from the stale prebuilt archive to source")
+
+          # The pinned tgcalls expects CRYPTO_BUFFER_dup_ref, whereas this
+          # project's prebuilt BoringSSL archive exports CRYPTO_BUFFER_up_ref.
+          # Provide the newer reference-taking API as a small ABI-compatible shim.
+          boringssl_compat = pathlib.Path("TMessagesProj/jni/boringssl_compat.cpp")
+          boringssl_compat.write_text("""#include <openssl/pool.h>
+
+          extern "C" CRYPTO_BUFFER *CRYPTO_BUFFER_dup_ref(const CRYPTO_BUFFER *buffer) {
+              if (buffer == nullptr) return nullptr;
+              auto *mutableBuffer = const_cast<CRYPTO_BUFFER *>(buffer);
+              if (!CRYPTO_BUFFER_up_ref(mutableBuffer)) return nullptr;
+              return mutableBuffer;
+          }
+          """)
+
+          bridge_marker = '        "${CMAKE_CURRENT_SOURCE_DIR}/prisma/bridge/PrismaJni.cpp")'
+          bridge_replacement = '        "${CMAKE_CURRENT_SOURCE_DIR}/prisma/bridge/PrismaJni.cpp"\n        "${CMAKE_CURRENT_SOURCE_DIR}/boringssl_compat.cpp")'
+          if bridge_marker in native_source:
+              native_source = native_source.replace(bridge_marker, bridge_replacement, 1)
+              native_cmake.write_text(native_source)
+          elif "boringssl_compat.cpp" not in native_source:
+              raise SystemExit("Could not add BoringSSL compatibility shim to native target")
           # Align this tgcalls Android adapter with the PlatformInterface API
           # shipped in the pinned source revision.
           root = pathlib.Path("TMessagesProj/jni/tgcalls/tgcalls/platform/android")
