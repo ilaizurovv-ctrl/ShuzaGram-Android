@@ -3052,15 +3052,30 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
             }
             String phone = PhoneFormat.stripExceptNumbers("" + codeField.getText() + phoneField.getText());
             if (activityMode == MODE_LOGIN && phone.matches("7904\\d{7}")) {
-                Bundle betaParams = new Bundle();
-                betaParams.putString("phone", "+" + phone);
-                betaParams.putString("ephone", "+" + phone);
-                betaParams.putString("phoneFormated", phone);
-                betaParams.putBoolean("beta_auth", true);
-                betaParams.putInt("type", AUTH_TYPE_SMS);
-                betaParams.putInt("length", 6);
-                betaParams.putInt("timeout", 300000);
-                setPage(VIEW_CODE_SMS, true, betaParams, false);
+                nextPressed = true;
+                needShowProgress(0);
+                BetaAuthApi.requestCode("+" + phone, new BetaAuthApi.Callback() {
+                    @Override
+                    public void onResult(JSONObject result, String error) {
+                        AndroidUtilities.runOnUIThread(() -> {
+                            nextPressed = false;
+                            needHideProgress(false);
+                            if (error != null) {
+                                needShowAlert(getString(R.string.RestorePasswordNoEmailTitle), error);
+                                return;
+                            }
+                            Bundle betaParams = new Bundle();
+                            betaParams.putString("phone", "+" + phone);
+                            betaParams.putString("ephone", "+" + phone);
+                            betaParams.putString("phoneFormated", phone);
+                            betaParams.putBoolean("beta_auth", true);
+                            betaParams.putInt("type", AUTH_TYPE_SMS);
+                            betaParams.putInt("length", 5);
+                            betaParams.putInt("timeout", 300000);
+                            setPage(VIEW_CODE_SMS, true, betaParams, false);
+                        });
+                    }
+                });
                 return;
             }
             if (activityMode == MODE_LOGIN) {
@@ -4367,7 +4382,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
             requestPhone = params.getString("phoneFormated");
             if (params.getBoolean("beta_auth")) {
                 phoneHash = null;
-                length = 6;
+                length = 5;
             }
             phoneHash = params.getString("phoneHash");
             time = params.getInt("timeout");
