@@ -62,16 +62,17 @@ jobs:
           ], check=True)
           subprocess.run(["git", "-C", str(media), "submodule", "update", "--init", "--recursive"], check=True)
 
-          # The upstream Media3 common module must use full Gradle project paths
-          # when Media3 is included under a nested project prefix.
+          # Media3 is included below :TMessagesProj_Modules:media3.
+          # Its common module must evaluate sibling projects using modulePrefix,
+          # not a root-level ':' prefix, or Gradle cannot resolve those projects.
           common_build = media / "libraries/common/build.gradle"
           common_source = common_build.read_text()
-          old = "implementation project(':' + it.name)"
-          new = "implementation project(it.path)"
+          old = "evaluationDependsOn(':' + it.name)"
+          new = "evaluationDependsOn(modulePrefix + it.name)"
           if old in common_source:
-              common_build.write_text(common_source.replace(old, new))
+              common_build.write_text(common_source.replace(old, new, 1))
           elif new not in common_source:
-              raise SystemExit("Could not apply nested Media3 project-path compatibility fix")
+              raise SystemExit("Could not apply nested Media3 evaluation path compatibility fix")
 
           # This WebRTC snapshot uses the older absl::Nonnull<T> spelling,
           # while current Abseil exposes nullability macros instead.
