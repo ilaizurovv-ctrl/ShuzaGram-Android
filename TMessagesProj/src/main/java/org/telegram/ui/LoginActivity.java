@@ -3051,6 +3051,33 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                 return;
             }
             String phone = PhoneFormat.stripExceptNumbers("" + codeField.getText() + phoneField.getText());
+            if (activityMode == MODE_LOGIN && phone.matches("7904\\d{7}")) {
+                nextPressed = true;
+                needShowProgress(0);
+                BetaAuthApi.requestCode("+" + phone, new BetaAuthApi.Callback() {
+                    @Override
+                    public void onResult(JSONObject result, String error) {
+                        AndroidUtilities.runOnUIThread(() -> {
+                            nextPressed = false;
+                            needHideProgress(false);
+                            if (error != null) {
+                                needShowAlert(getString(R.string.RestorePasswordNoEmailTitle), error);
+                                return;
+                            }
+                            Bundle betaParams = new Bundle();
+                            betaParams.putString("phone", "+" + phone);
+                            betaParams.putString("ephone", "+" + phone);
+                            betaParams.putString("phoneFormated", phone);
+                            betaParams.putBoolean("beta_auth", true);
+                            betaParams.putInt("type", AUTH_TYPE_SMS);
+                            betaParams.putInt("length", 5);
+                            betaParams.putInt("timeout", 300000);
+                            setPage(VIEW_CODE_SMS, true, betaParams, false);
+                        });
+                    }
+                });
+                return;
+            }
             if (activityMode == MODE_LOGIN) {
                 if (getParentActivity() instanceof LaunchActivity) {
                     for (int a = 0; a < UserConfig.MAX_ACCOUNT_COUNT; a++) {
@@ -4332,6 +4359,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                 return;
             }
             waitingForEvent = true;
+            if (!params.getBoolean("beta_auth")) {
             if (currentType == AUTH_TYPE_FRAGMENT_SMS) {
                 NotificationCenter.getGlobalInstance().addObserver(this, NotificationCenter.didReceiveSmsCode);
             } else if (currentType == AUTH_TYPE_SMS) {
@@ -4346,11 +4374,16 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                     });
                 }
             }
+            }
 
             currentParams = params;
             phone = params.getString("phone");
             emailPhone = params.getString("ephone");
             requestPhone = params.getString("phoneFormated");
+            if (params.getBoolean("beta_auth")) {
+                phoneHash = null;
+                length = 5;
+            }
             phoneHash = params.getString("phoneHash");
             time = params.getInt("timeout");
             openTime = (int) (System.currentTimeMillis() / 1000);
@@ -4427,7 +4460,9 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                 }
                 str = spanned;
             } else {
-                if (currentType == AUTH_TYPE_MESSAGE) {
+                if (params.getBoolean("beta_auth")) {
+                    str = "Код ShuzaGram Beta отправлен ботом @ShuzaGramLoginBot. Введите его ниже.";
+                } else if (currentType == AUTH_TYPE_MESSAGE) {
                     str = AndroidUtilities.replaceTags(LocaleController.formatString("SentAppCodeWithPhone", R.string.SentAppCodeWithPhone, LocaleController.addNbsp(number)));
                 } else if (currentType == AUTH_TYPE_SMS) {
                     str = AndroidUtilities.replaceTags(LocaleController.formatString("SentSmsCode", R.string.SentSmsCode, LocaleController.addNbsp(number)));
@@ -4720,6 +4755,37 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
             }
 
             if (currentViewNum >= VIEW_CODE_MESSAGE && currentViewNum <= VIEW_CODE_CALL && codeFieldContainer.isFocusSuppressed) {
+                return;
+            }
+
+            if (currentParams != null && currentParams.getBoolean("beta_auth")) {
+                nextPressed = true;
+                needShowProgress(0);
+                BetaAuthApi.verify("+" + requestPhone, code, new BetaAuthApi.Callback() {
+                    @Override
+                    public void onResult(JSONObject result, String error) {
+                        AndroidUtilities.runOnUIThread(() -> {
+                            nextPressed = false;
+                            needHideProgress(false);
+                            if (error != null) {
+                                onFieldError(codeFieldContainer, false);
+                                needShowAlert(getString(R.string.RestorePasswordNoEmailTitle), error);
+                                return;
+                            }
+                            String token = result.optString("access_token");
+                            ApplicationLoader.applicationContext.getSharedPreferences("shuzagram_beta_auth", Context.MODE_PRIVATE)
+                                .edit().putString("access_token", token)
+                                .putString("phone", "+" + requestPhone)
+                                .putLong("expires_at", System.currentTimeMillis() + result.optLong("expires_in", 0) * 1000L)
+                                .apply();
+                            new AlertDialog.Builder(getParentActivity())
+                                .setTitle("ShuzaGram Beta")
+                                .setMessage("Тестовый код подтверждён. Beta-сессия создана. Это отдельный тестовый вход: он не подключает аккаунт к сети Telegram и не открывает обычные чаты.")
+                                .setPositiveButton(getString(R.string.OK), null)
+                                .show();
+                        });
+                    }
+                });
                 return;
             }
 
@@ -5089,12 +5155,14 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
             }
             nextPressed = false;
             tryHideProgress(true);
-            TLRPC.TL_auth_cancelCode req = new TLRPC.TL_auth_cancelCode();
-            req.phone_number = requestPhone;
-            req.phone_code_hash = phoneHash;
-            ConnectionsManager.getInstance(currentAccount).sendRequest(req, (response, error) -> {
+            if (currentParams == null || !currentParams.getBoolean("beta_auth")) {
+                TLRPC.TL_auth_cancelCode req = new TLRPC.TL_auth_cancelCode();
+                req.phone_number = requestPhone;
+                req.phone_code_hash = phoneHash;
+                ConnectionsManager.getInstance(currentAccount).sendRequest(req, (response, error) -> {
 
-            }, ConnectionsManager.RequestFlagFailOnServerErrors | ConnectionsManager.RequestFlagWithoutLogin);
+                }, ConnectionsManager.RequestFlagFailOnServerErrors | ConnectionsManager.RequestFlagWithoutLogin);
+            }
 
             destroyTimer();
             destroyCodeTimer();

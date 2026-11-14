@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: shuzagram-beta-auth
+    runtime: node
+    plan: free
+    region: ohio
+    rootDir: beta-auth
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: BOT_TOKEN
+        sync: false
+      - key: OTP_PEPPER
+        generateValue: true
+      - key: SESSION_PEPPER
+        generateValue: true
+      - key: WEBHOOK_SECRET
+        generateValue: true

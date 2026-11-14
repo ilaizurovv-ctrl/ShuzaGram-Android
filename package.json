@@ -1,0 +1,17 @@
+{
+  "name": "shuzagram-beta-deploy",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Render entry point for the isolated ShuzaGram Beta auth service",
+  "scripts": {
+    "start": "node beta-auth/server.js",
+    "check": "node --check beta-auth/server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "pg": "^8.13.1"
+  }
+}

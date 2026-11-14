@@ -1,0 +1,25 @@
+name: Beta auth backend check
+
+on:
+  push:
+    branches: [main, feature/beta-test-auth]
+    paths:
+      - "beta-auth/**"
+      - ".github/workflows/beta-auth-check.yml"
+  pull_request:
+    paths:
+      - "beta-auth/**"
+      - ".github/workflows/beta-auth-check.yml"
+
+jobs:
+  node-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Check JavaScript syntax
+        run: node --check beta-auth/server.js
+      - name: Validate package metadata
+        run: node -e "JSON.parse(require('fs').readFileSync('beta-auth/package.json', 'utf8'))"
