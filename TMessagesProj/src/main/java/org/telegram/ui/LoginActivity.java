@@ -4375,6 +4375,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                     });
                 }
             }
+            }
 
             currentParams = params;
             phone = params.getString("phone");
