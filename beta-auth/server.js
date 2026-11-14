@@ -183,19 +183,11 @@ async function handleCallback(update) {
   const chatId = query.message.chat.id;
 
   try {
-    const issued = await issueCode(telegramId);
-    if (issued.throttled) {
-      await telegram("sendMessage", {
-        chat_id: chatId,
-        text: "Ваш тестовый номер: " + issued.phone + "\nНовый код можно запросить через минуту. Предыдущий код мог истечь через 5 минут.",
-      });
-      return;
-    }
+    const phone = await getOrCreateUser(telegramId);
     await telegram("sendMessage", {
       chat_id: chatId,
-      text: "Ваш персональный тестовый номер ShuzaGram Beta:\n" + issued.phone +
-        "\n\nКод подтверждения: " + issued.code +
-        "\n\nКод действует 5 минут и используется один раз. Это тестовые данные, не реальные SMS.",
+      text: "Ваш персональный тестовый номер ShuzaGram Beta:\n" + phone +
+        "\n\nВведите этот номер в приложении. Код придёт сюда только после перехода на экран ввода кода.",
     });
   } catch (error) {
     console.error("Bot callback failed:", error.message);
@@ -227,6 +219,48 @@ app.post("/telegram/webhook", async (req, res) => {
   } catch (error) {
     console.error("Webhook update failed:", error.message);
     return res.sendStatus(500);
+  }
+});
+
+app.post("/api/beta-auth/request-code", async (req, res) => {
+  const phone = String(req.body?.phone || "").trim();
+  if (!/^\\+7904\\d{7}$/.test(phone)) {
+    return res.status(400).json({ error: "invalid_phone" });
+  }
+
+  try {
+    const found = await pool.query(
+      "SELECT telegram_id FROM beta_test_users WHERE phone = $1",
+      [phone]
+    );
+    if (!found.rows[0]) {
+      return res.status(404).json({ error: "beta_number_not_found" });
+    }
+
+    const telegramId = found.rows[0].telegram_id;
+    const issued = await issueCode(telegramId);
+    if (issued.throttled) {
+      return res.status(429).json({ error: "code_rate_limited", retry_after: 60 });
+    }
+
+    try {
+      await telegram("sendMessage", {
+        chat_id: telegramId,
+        text: "Код подтверждения ShuzaGram Beta: " + issued.code +
+          "\\n\\nКод действует 5 минут и используется один раз. Если вы не запрашивали вход, просто проигнорируйте это сообщение.",
+      });
+    } catch (sendError) {
+      await pool.query(
+        "UPDATE beta_test_otps SET used_at = NOW() WHERE phone = $1 AND used_at IS NULL",
+        [phone]
+      );
+      throw sendError;
+    }
+
+    return res.json({ ok: true, message: "code_sent_to_telegram", expires_in: OTP_TTL_SECONDS });
+  } catch (error) {
+    console.error("OTP delivery failed:", error.message);
+    return res.status(502).json({ error: "code_delivery_failed" });
   }
 });
 
