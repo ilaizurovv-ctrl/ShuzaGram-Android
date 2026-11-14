@@ -40,6 +40,8 @@ jobs:
                   pathlib.Path(path).parent.mkdir(parents=True, exist_ok=True)
                   print(f"Cloning {path} from {url}", flush=True)
                   subprocess.run(["git", "clone", "--depth", "1", url, path], check=True)
+              if path == "TMessagesProj/jni/tgcalls":
+                  subprocess.run(["git", "-C", path, "checkout", "dev/android"], check=True)
               subprocess.run(["git", "-C", path, "submodule", "update", "--init", "--recursive"], check=True)
 
           media = pathlib.Path("TMessagesProj_Modules/media")
