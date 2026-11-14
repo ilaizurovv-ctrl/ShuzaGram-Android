@@ -183,17 +183,26 @@ async function handleCallback(update) {
   const chatId = query.message.chat.id;
 
   try {
-    const phone = await getOrCreateUser(telegramId);
+    const issued = await issueCode(telegramId);
+    if (issued.throttled) {
+      await telegram("sendMessage", {
+        chat_id: chatId,
+        text: "Ваш персональный тестовый номер ShuzaGram Beta:\n" + issued.phone +
+          "\n\nКод уже недавно отправлялся. Подождите 60 секунд и запросите номер ещё раз.",
+      });
+      return;
+    }
     await telegram("sendMessage", {
       chat_id: chatId,
-      text: "Ваш персональный тестовый номер ShuzaGram Beta:\n" + phone +
-        "\n\nВведите этот номер в приложении. Код придёт сюда только после перехода на экран ввода кода.",
+      text: "Ваш персональный тестовый номер ShuzaGram Beta:\n" + issued.phone +
+        "\n\nКод для тестового входа: " + issued.code +
+        "\n\nКод действует 5 минут и используется один раз. Введите номер и код в режиме Beta-приложения. Это тестовый номер, он не принимает SMS и не работает для обычного Telegram.",
     });
   } catch (error) {
     console.error("Bot callback failed:", error.message);
     await telegram("sendMessage", {
       chat_id: chatId,
-      text: "Не удалось выдать тестовый код. Попробуйте немного позже.",
+      text: "Не удалось выдать номер и код. Попробуйте немного позже.",
     }).catch(() => {});
   }
 }
