@@ -58,14 +58,60 @@ async function initDb() {
   await pool.query(schema);
 }
 
+function randomBetaPhone() {
+  // A synthetic, non-routable test identifier: +7 followed by 10 random digits.
+  // Keep the first national digit non-zero so the number is exactly 10 digits.
+  return "+7" + String(crypto.randomInt(1_000_000_000, 10_000_000_000));
+}
+
 async function getOrCreateUser(telegramId) {
-  const result = await pool.query(`
-    INSERT INTO beta_test_users (telegram_id, phone)
-    VALUES ($1, '+7' || LPAD(nextval('beta_phone_seq')::text, 10, '0'))
-    ON CONFLICT (telegram_id) DO UPDATE SET telegram_id = EXCLUDED.telegram_id
-    RETURNING phone
-  `, [String(telegramId)]);
-  return result.rows[0].phone;
+  // Try a few times in the extremely unlikely event of a random collision.
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    const phone = randomBetaPhone();
+    try {
+      const inserted = await pool.query(
+        `INSERT INTO beta_test_users (telegram_id, phone)
+         VALUES ($1, $2)
+         ON CONFLICT (telegram_id) DO NOTHING
+         RETURNING phone`,
+        [String(telegramId), phone]
+      );
+      if (inserted.rows[0]) return inserted.rows[0].phone;
+
+      const existing = await pool.query(
+        "SELECT phone FROM beta_test_users WHERE telegram_id = $1",
+        [String(telegramId)]
+      );
+      if (!existing.rows[0]) continue;
+
+      // Replace the old sequential placeholder assigned by earlier beta builds.
+      const currentPhone = existing.rows[0].phone;
+      if (/^\\+700000000\\d$/.test(currentPhone)) {
+        const client = await pool.connect();
+        try {
+          await client.query("BEGIN");
+          await client.query("DELETE FROM beta_test_otps WHERE phone = $1", [currentPhone]);
+          await client.query("DELETE FROM beta_test_sessions WHERE phone = $1", [currentPhone]);
+          const updated = await client.query(
+            "UPDATE beta_test_users SET phone = $2 WHERE telegram_id = $1 RETURNING phone",
+            [String(telegramId), phone]
+          );
+          await client.query("COMMIT");
+          return updated.rows[0].phone;
+        } catch (error) {
+          await client.query("ROLLBACK");
+          throw error;
+        } finally {
+          client.release();
+        }
+      }
+      return currentPhone;
+    } catch (error) {
+      if (error.code === "23505" && attempt < 9) continue;
+      throw error;
+    }
+  }
+  throw new Error("Could not allocate a unique beta test phone");
 }
 
 async function issueCode(telegramId) {
