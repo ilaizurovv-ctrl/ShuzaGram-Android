@@ -111,18 +111,19 @@ jobs:
           elif "add_subdirectory(prisma)" not in native_source:
               raise SystemExit("Could not switch Prisma from the stale prebuilt archive to source")
 
-          # The local SyntaxHighlighter.cpp override was written for an older
-          # libprisma API than the current TelegramMessenger/libprisma submodule.
-          # Keep the matching upstream .cpp/.h pair; only retain compatible local
-          # Highlight overrides.
+          # The local Prisma Highlight.h/.cpp files are also from an older API:
+          # they lack Pattern::search(), which the current upstream SyntaxHighlighter uses.
+          # Use the complete, version-matched upstream libprisma source set.
           prisma_cmake = pathlib.Path("TMessagesProj/jni/prisma/CMakeLists.txt")
           prisma_cmake_source = prisma_cmake.read_text()
-          old_overrides = "foreach(source IN ITEMS Highlight.cpp Highlight.h SyntaxHighlighter.cpp)"
-          new_overrides = "foreach(source IN ITEMS Highlight.cpp Highlight.h)"
+          old_overrides = """foreach(source IN ITEMS Highlight.cpp Highlight.h SyntaxHighlighter.cpp)
+              configure_file("${CMAKE_CURRENT_SOURCE_DIR}/libprisma/${source}"
+                  "${PRISMA_CORE_DIR}/${source}" COPYONLY)
+          endforeach()"""
           if old_overrides in prisma_cmake_source:
-              prisma_cmake.write_text(prisma_cmake_source.replace(old_overrides, new_overrides, 1))
-          elif new_overrides not in prisma_cmake_source:
-              raise SystemExit("Could not remove the incompatible local Prisma SyntaxHighlighter.cpp override")
+              prisma_cmake.write_text(prisma_cmake_source.replace(old_overrides, "# Local Prisma overrides disabled: use version-matched upstream sources.", 1))
+          elif "# Local Prisma overrides disabled: use version-matched upstream sources." not in prisma_cmake_source:
+              raise SystemExit("Could not disable incompatible local Prisma source overrides")
           # Guard against stale CMake copies from a previous configure in the same workspace.
           generated_prisma = pathlib.Path("TMessagesProj/.cxx")
           if generated_prisma.exists():
