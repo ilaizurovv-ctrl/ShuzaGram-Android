@@ -1,0 +1,18 @@
+{
+  "name": "shuzagram-beta-auth",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Separate test-only authentication backend and Telegram bot for ShuzaGram Beta",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "check": "node --check server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "pg": "^8.13.1"
+  }
+}
