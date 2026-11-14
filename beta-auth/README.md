@@ -13,23 +13,15 @@ This is a **separate test identity system**. It does not authenticate users with
 
 ## Hosting
 
-The intended free setup is one Koyeb Free Web Service plus a separate Neon Free PostgreSQL project. The Koyeb service must be a **Web Service**, not a Worker: the free instance does not support Worker Services and may scale to zero after one hour without incoming traffic. Telegram updates therefore use a webhook rather than long polling.
+The intended free setup is one Render Free Web Service plus a separate Neon Free PostgreSQL project. The Render service must be a **Web Service**. Free web services spin down after inactivity, so the first request after sleep can be delayed. Telegram updates therefore use a webhook rather than long polling.
 
-In Koyeb, connect this GitHub repository and select:
+In Render, create a Blueprint from this repository and select branch `feature/beta-test-auth`. The root `render.yaml` defines the service and sets its root directory to `beta-auth`.
 
-- Branch: `feature/beta-test-auth`
-- Work directory: `beta-auth`
-- Build command: `npm install`
-- Run command: `npm start`
-- Instance: Free
-- Service type: Web Service
-- Health check path: `/health`
-
-Koyeb supplies `KOYEB_PUBLIC_DOMAIN` automatically. On startup the server registers `https://<KOYEB_PUBLIC_DOMAIN>/telegram/webhook` with Telegram and validates Telegram's `X-Telegram-Bot-Api-Secret-Token` header.
+Render supplies `RENDER_EXTERNAL_HOSTNAME` automatically. On startup the server registers `https://<RENDER_EXTERNAL_HOSTNAME>/telegram/webhook` with Telegram and validates Telegram's `X-Telegram-Bot-Api-Secret-Token` header.
 
 ## Environment variables
 
-Set these in the Koyeb service settings. Keep all values private:
+Set these in the Render service settings. Keep all values private:
 
 - `DATABASE_URL` — Neon PostgreSQL connection string (prefer the pooled connection string).
 - `BOT_TOKEN` — token from BotFather for `@ShuzaGramLoginBot`.
