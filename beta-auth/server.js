@@ -59,9 +59,9 @@ async function initDb() {
 }
 
 function randomBetaPhone() {
-  // A synthetic, non-routable test identifier: +7 followed by 10 random digits.
-  // Keep the first national digit non-zero so the number is exactly 10 digits.
-  return "+7" + String(crypto.randomInt(1_000_000_000, 10_000_000_000));
+  // Beta display format: +7 904 XXX-XX-XX. This is a synthetic test ID,
+  // not a provisioned phone line and must never be used for calls or SMS.
+  return "+7904" + String(crypto.randomInt(0, 10_000_000)).padStart(7, "0");
 }
 
 async function getOrCreateUser(telegramId) {
@@ -86,7 +86,7 @@ async function getOrCreateUser(telegramId) {
 
       // Replace the old sequential placeholder assigned by earlier beta builds.
       const currentPhone = existing.rows[0].phone;
-      if (/^\+70{9}\d$/.test(currentPhone)) {
+      if (!/^\+7904\d{7}$/.test(currentPhone)) {
         const client = await pool.connect();
         try {
           await client.query("BEGIN");
@@ -233,7 +233,7 @@ app.post("/telegram/webhook", async (req, res) => {
 app.post("/api/beta-auth/verify", async (req, res) => {
   const phone = String(req.body?.phone || "").trim();
   const code = String(req.body?.code || "").trim();
-  if (!/^\+7\d{10}$/.test(phone) || !/^\d{6}$/.test(code)) {
+  if (!/^\+7904\d{7}$/.test(phone) || !/^\d{6}$/.test(code)) {
     return res.status(400).json({ error: "invalid_input" });
   }
 
