@@ -1,4 +1,5 @@
 name: Build ShuzaGram Debug APK
+run-name: ShuzaGram APK build #${{ github.run_number }}
 
 on:
   workflow_dispatch:
