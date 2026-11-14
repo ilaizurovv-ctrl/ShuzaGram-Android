@@ -13,6 +13,7 @@ if (process.env.WEBHOOK_SECRET.length < 16) {
   console.error("WEBHOOK_SECRET must be at least 16 characters");
   process.exit(1);
 }
+const sha256 = (value) => crypto.createHash("sha256").update(value).digest("hex");
 const TELEGRAM_WEBHOOK_SECRET = sha256(process.env.WEBHOOK_SECRET);
 
 const pool = new Pool({
@@ -29,7 +30,6 @@ const BOT_API = "https://api.telegram.org/bot" + process.env.BOT_TOKEN;
 const OTP_TTL_SECONDS = 5 * 60;
 const SESSION_TTL_SECONDS = 7 * 24 * 60 * 60;
 
-const sha256 = (value) => crypto.createHash("sha256").update(value).digest("hex");
 const otpDigest = (phone, code) => sha256(phone + ":" + code + ":" + process.env.OTP_PEPPER);
 const sessionDigest = (token) => sha256(token + ":" + process.env.SESSION_PEPPER);
 
