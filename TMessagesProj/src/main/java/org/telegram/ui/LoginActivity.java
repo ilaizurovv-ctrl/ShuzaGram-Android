@@ -3052,31 +3052,15 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
             }
             String phone = PhoneFormat.stripExceptNumbers("" + codeField.getText() + phoneField.getText());
             if (activityMode == MODE_LOGIN && phone.matches("7904\\d{7}")) {
-                if (nextPressed) return;
-                nextPressed = true;
-                needShowProgress(0);
-                BetaAuthApi.requestCode("+" + phone, new BetaAuthApi.Callback() {
-                    @Override
-                    public void onResult(JSONObject result, String error) {
-                        AndroidUtilities.runOnUIThread(() -> {
-                            nextPressed = false;
-                            needHideProgress(false);
-                            if (error != null) {
-                                needShowAlert(getString(R.string.RestorePasswordNoEmailTitle), error);
-                                return;
-                            }
-                            Bundle betaParams = new Bundle();
-                            betaParams.putString("phone", "+" + phone);
-                            betaParams.putString("ephone", "+" + phone);
-                            betaParams.putString("phoneFormated", phone);
-                            betaParams.putBoolean("beta_auth", true);
-                            betaParams.putInt("type", AUTH_TYPE_SMS);
-                            betaParams.putInt("length", 6);
-                            betaParams.putInt("timeout", 300000);
-                            setPage(VIEW_CODE_SMS, true, betaParams, false);
-                        });
-                    }
-                });
+                Bundle betaParams = new Bundle();
+                betaParams.putString("phone", "+" + phone);
+                betaParams.putString("ephone", "+" + phone);
+                betaParams.putString("phoneFormated", phone);
+                betaParams.putBoolean("beta_auth", true);
+                betaParams.putInt("type", AUTH_TYPE_SMS);
+                betaParams.putInt("length", 6);
+                betaParams.putInt("timeout", 300000);
+                setPage(VIEW_CODE_SMS, true, betaParams, false);
                 return;
             }
             if (activityMode == MODE_LOGIN) {
@@ -5154,12 +5138,14 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
             }
             nextPressed = false;
             tryHideProgress(true);
-            TLRPC.TL_auth_cancelCode req = new TLRPC.TL_auth_cancelCode();
-            req.phone_number = requestPhone;
-            req.phone_code_hash = phoneHash;
-            ConnectionsManager.getInstance(currentAccount).sendRequest(req, (response, error) -> {
+            if (currentParams == null || !currentParams.getBoolean("beta_auth")) {
+                TLRPC.TL_auth_cancelCode req = new TLRPC.TL_auth_cancelCode();
+                req.phone_number = requestPhone;
+                req.phone_code_hash = phoneHash;
+                ConnectionsManager.getInstance(currentAccount).sendRequest(req, (response, error) -> {
 
-            }, ConnectionsManager.RequestFlagFailOnServerErrors | ConnectionsManager.RequestFlagWithoutLogin);
+                }, ConnectionsManager.RequestFlagFailOnServerErrors | ConnectionsManager.RequestFlagWithoutLogin);
+            }
 
             destroyTimer();
             destroyCodeTimer();
