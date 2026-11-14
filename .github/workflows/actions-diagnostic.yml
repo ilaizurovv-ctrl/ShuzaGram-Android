@@ -11,3 +11,5 @@ jobs:
     steps:
       - name: Confirm Actions runner starts
         run: echo "GitHub Actions runner started"
+
+# Trigger diagnostic after workflow is present on the default branch
