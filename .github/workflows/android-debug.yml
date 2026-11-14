@@ -90,6 +90,56 @@ jobs:
               attributes.write_text(attributes_source.replace(modern, compatible, 1))
           elif compatible not in attributes_source:
               raise SystemExit("Could not locate Abseil ABSL_DEPRECATED definition")
+          # Align this tgcalls Android adapter with the PlatformInterface API
+          # shipped in the pinned source revision.
+          root = pathlib.Path("TMessagesProj/jni/tgcalls/tgcalls/platform/android")
+          def replace_once(path, old_text, new_text):
+              p = root / path
+              source = p.read_text()
+              if new_text in source:
+                  return
+              if old_text not in source:
+                  raise SystemExit(f"Could not patch tgcalls Android API in {p}")
+              p.write_text(source.replace(old_text, new_text, 1))
+
+          replace_once("AndroidInterface.h",
+              "void configurePlatformAudio() override;",
+              "void configurePlatformAudio(int numChannels = 1) override;")
+          replace_once("AndroidInterface.h",
+              "std::unique_ptr<webrtc::VideoEncoderFactory> makeVideoEncoderFactory() override;",
+              "std::unique_ptr<webrtc::VideoEncoderFactory> makeVideoEncoderFactory(bool preferHardwareEncoding = false, bool isScreencast = false) override;")
+          replace_once("AndroidInterface.h",
+              "std::function<void(VideoState)> stateUpdated, std::shared_ptr<PlatformContext> platformContext, std::pair<int, int> &outResolution) override;",
+              "std::function<void(VideoState)> stateUpdated, std::function<void(PlatformCaptureInfo)> captureInfoUpdated, std::shared_ptr<PlatformContext> platformContext, std::pair<int, int> &outResolution) override;")
+          replace_once("AndroidInterface.cpp",
+              '#include "api/video_track_source_proxy.h"\n', "")
+          replace_once("AndroidInterface.cpp",
+              "void AndroidInterface::configurePlatformAudio() {",
+              "void AndroidInterface::configurePlatformAudio(int numChannels) {")
+          replace_once("AndroidInterface.cpp",
+              "std::unique_ptr<webrtc::VideoEncoderFactory> AndroidInterface::makeVideoEncoderFactory() {",
+              "std::unique_ptr<webrtc::VideoEncoderFactory> AndroidInterface::makeVideoEncoderFactory(bool preferHardwareEncoding, bool isScreencast) {")
+          replace_once("AndroidInterface.cpp",
+              "return webrtc::VideoTrackSourceProxy::Create(signalingThread, workerThread, _source);",
+              "return _source;")
+          replace_once("AndroidInterface.cpp",
+              "std::function<void(VideoState)> stateUpdated, std::shared_ptr<PlatformContext> platformContext) {",
+              "std::function<void(VideoState)> stateUpdated, std::function<void(PlatformCaptureInfo)> captureInfoUpdated, std::shared_ptr<PlatformContext> platformContext, std::pair<int, int> &outResolution) {")
+          impl_h = root / "VideoCapturerInterfaceImpl.h"
+          impl_source = impl_h.read_text()
+          if "int getRotation() override;" not in impl_source:
+              marker = "\tvoid setState(VideoState state) override;"
+              if marker not in impl_source:
+                  raise SystemExit("Could not add getRotation to Android capturer interface")
+              impl_h.write_text(impl_source.replace(marker, marker + "\n\tint getRotation() override;", 1))
+          impl_cpp = root / "VideoCapturerInterfaceImpl.cpp"
+          impl_source = impl_cpp.read_text()
+          if "VideoCapturerInterfaceImpl::getRotation()" not in impl_source:
+              marker = "void VideoCapturerInterfaceImpl::setState(VideoState state) {"
+              if marker not in impl_source:
+                  raise SystemExit("Could not add getRotation implementation")
+              impl_source = impl_source.replace(marker, "int VideoCapturerInterfaceImpl::getRotation() {\n\treturn 0;\n}\n\n" + marker, 1)
+              impl_cpp.write_text(impl_source)
           PY
 
       - name: Set up Java
