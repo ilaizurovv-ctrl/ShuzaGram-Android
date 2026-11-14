@@ -67,6 +67,17 @@ jobs:
               common_build.write_text(common_source.replace(old, new))
           elif new not in common_source:
               raise SystemExit("Could not apply nested Media3 project-path compatibility fix")
+
+          # This WebRTC snapshot uses the older absl::Nonnull<T> spelling,
+          # while current Abseil exposes nullability macros instead.
+          nullability = pathlib.Path("TMessagesProj/jni/third_party/absl/absl/base/nullability.h")
+          nullability_source = nullability.read_text()
+          compatibility_alias = "namespace absl {\\n  template <typename T> using Nonnull = T;\\n}\\n"
+          if "using Nonnull =" not in nullability_source:
+              marker = "#endif  // ABSL_BASE_NULLABILITY_H_"
+              if marker not in nullability_source:
+                  raise SystemExit("Could not locate Abseil nullability header insertion point")
+              nullability.write_text(nullability_source.replace(marker, compatibility_alias + marker, 1))
           PY
 
       - name: Set up Java
