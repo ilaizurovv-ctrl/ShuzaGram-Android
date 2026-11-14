@@ -111,6 +111,19 @@ jobs:
           elif "add_subdirectory(prisma)" not in native_source:
               raise SystemExit("Could not switch Prisma from the stale prebuilt archive to source")
 
+          # The local SyntaxHighlighter.cpp override was written for an older
+          # libprisma API than the current TelegramMessenger/libprisma submodule.
+          # Keep the matching upstream .cpp/.h pair; only retain compatible local
+          # Highlight overrides.
+          prisma_cmake = pathlib.Path("TMessagesProj/jni/prisma/CMakeLists.txt")
+          prisma_cmake_source = prisma_cmake.read_text()
+          old_overrides = "foreach(source IN ITEMS Highlight.cpp Highlight.h SyntaxHighlighter.cpp)"
+          new_overrides = "foreach(source IN ITEMS Highlight.cpp Highlight.h)"
+          if old_overrides in prisma_cmake_source:
+              prisma_cmake.write_text(prisma_cmake_source.replace(old_overrides, new_overrides, 1))
+          elif new_overrides not in prisma_cmake_source:
+              raise SystemExit("Could not align Prisma SyntaxHighlighter sources with the checked-out libprisma API")
+
           # The pinned tgcalls expects CRYPTO_BUFFER_dup_ref, whereas this
           # project's prebuilt BoringSSL archive exports CRYPTO_BUFFER_up_ref.
           # Provide the newer reference-taking API as a small ABI-compatible shim.
