@@ -96,9 +96,17 @@ jobs:
           # libprisma.a does not export the tokenize() overload used by this bridge.
           native_cmake = pathlib.Path("TMessagesProj/jni/CMakeLists.txt")
           native_source = native_cmake.read_text()
-          imported_prisma = "add_library(prisma STATIC IMPORTED)\\nset_target_properties(prisma PROPERTIES IMPORTED_LOCATION ${CMAKE_HOME_DIRECTORY}/prebuild/lib/${ANDROID_ABI}/libprisma.a)"
-          if imported_prisma in native_source:
-              native_source = native_source.replace(imported_prisma, "add_subdirectory(prisma)", 1)
+          import re
+          prisma_pattern = (
+              r"add_library\\(prisma\\s+STATIC\\s+IMPORTED\\)\\s*"
+              r"set_target_properties\\(prisma\\s+PROPERTIES\\s+"
+              r"IMPORTED_LOCATION\\s+\\$\\{CMAKE_HOME_DIRECTORY\\}/prebuild/lib/"
+              r"\\$\\{ANDROID_ABI\\}/libprisma\\.a\\)"
+          )
+          native_source, prisma_matches = re.subn(
+              prisma_pattern, "add_subdirectory(prisma)", native_source, count=1
+          )
+          if prisma_matches == 1:
               native_cmake.write_text(native_source)
           elif "add_subdirectory(prisma)" not in native_source:
               raise SystemExit("Could not switch Prisma from the stale prebuilt archive to source")
