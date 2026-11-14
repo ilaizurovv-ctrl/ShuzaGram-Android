@@ -47,7 +47,7 @@ async function telegram(method, payload = {}) {
 }
 
 async function initDb() {
-  await pool.query(\`
+  await pool.query(`
     CREATE SEQUENCE IF NOT EXISTS beta_phone_seq START 1;
     CREATE TABLE IF NOT EXISTS beta_test_users (
       id BIGSERIAL PRIMARY KEY,
@@ -74,16 +74,16 @@ async function initDb() {
       expires_at TIMESTAMPTZ NOT NULL,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
-  \`);
+  `);
 }
 
 async function getOrCreateUser(telegramId) {
-  const result = await pool.query(\`
+  const result = await pool.query(`
     INSERT INTO beta_test_users (telegram_id, phone)
     VALUES ($1, '+7' || LPAD(nextval('beta_phone_seq')::text, 10, '0'))
     ON CONFLICT (telegram_id) DO UPDATE SET telegram_id = EXCLUDED.telegram_id
     RETURNING phone
-  \`, [String(telegramId)]);
+  `, [String(telegramId)]);
   return result.rows[0].phone;
 }
 
@@ -214,12 +214,12 @@ app.post("/api/beta-auth/verify", async (req, res) => {
   try {
     await client.query("BEGIN");
     const found = await client.query(
-      \`SELECT id, attempts, expires_at, used_at, code_hash
+      `SELECT id, attempts, expires_at, used_at, code_hash
        FROM beta_test_otps
        WHERE phone = $1
        ORDER BY created_at DESC
        LIMIT 1
-       FOR UPDATE\`,
+       FOR UPDATE`,
       [phone]
     );
     const otp = found.rows[0];
