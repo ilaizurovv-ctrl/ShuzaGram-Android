@@ -4445,7 +4445,9 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                 }
                 str = spanned;
             } else {
-                if (currentType == AUTH_TYPE_MESSAGE) {
+                if (params.getBoolean("beta_auth")) {
+                    str = "Код ShuzaGram Beta отправлен ботом @ShuzaGramLoginBot. Введите его ниже.";
+                } else if (currentType == AUTH_TYPE_MESSAGE) {
                     str = AndroidUtilities.replaceTags(LocaleController.formatString("SentAppCodeWithPhone", R.string.SentAppCodeWithPhone, LocaleController.addNbsp(number)));
                 } else if (currentType == AUTH_TYPE_SMS) {
                     str = AndroidUtilities.replaceTags(LocaleController.formatString("SentSmsCode", R.string.SentSmsCode, LocaleController.addNbsp(number)));
