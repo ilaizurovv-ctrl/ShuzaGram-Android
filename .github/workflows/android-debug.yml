@@ -50,13 +50,17 @@ jobs:
               subprocess.run(["git", "-C", path, "submodule", "update", "--init", "--recursive"], check=True)
 
           media = pathlib.Path("TMessagesProj_Modules/media")
-          if not (media / "core_settings.gradle").exists():
-              if media.exists():
-                  import shutil
-                  shutil.rmtree(media)
-              media.parent.mkdir(parents=True, exist_ok=True)
-              subprocess.run(["git", "clone", "--depth", "1", "https://github.com/TomFamily/androidX-media.git", str(media)], check=True)
-              subprocess.run(["git", "-C", str(media), "submodule", "update", "--init", "--recursive"], check=True)
+          # This source tree uses Telegram's Media3 fork/API (1.10.1), not the
+          # old generic AndroidX snapshot previously cloned by CI.
+          if media.exists():
+              import shutil
+              shutil.rmtree(media)
+          media.parent.mkdir(parents=True, exist_ok=True)
+          subprocess.run([
+              "git", "clone", "--depth", "1", "--branch", "telegram-v1.10.1-ffmpeg",
+              "https://github.com/Arseny271/media.git", str(media)
+          ], check=True)
+          subprocess.run(["git", "-C", str(media), "submodule", "update", "--init", "--recursive"], check=True)
 
           # The upstream Media3 common module must use full Gradle project paths
           # when Media3 is included under a nested project prefix.
