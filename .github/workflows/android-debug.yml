@@ -122,6 +122,94 @@ jobs:
           replace_once("AndroidInterface.cpp",
               "return webrtc::VideoTrackSourceProxy::Create(signalingThread, workerThread, _source);",
               "return _source;")
+          # Restore the AndroidContext bridge expected by this app's JNI layer.
+          # The pinned upstream tgcalls revision has a newer, minimal context.
+          context_h = root / "AndroidContext.h"
+          context_source = context_h.read_text()
+          if '#include "tgcalls/group/GroupInstanceImpl.h"' not in context_source:
+              context_source = context_source.replace(
+                  '#include "PlatformContext.h"',
+                  '#include "PlatformContext.h"\n#include "tgcalls/group/GroupInstanceImpl.h"', 1)
+          if "AndroidContext(JNIEnv *env, jobject peerInstance, jobject groupInstance, bool screencast);" not in context_source:
+              context_source = context_source.replace(
+                  "    AndroidContext(JNIEnv *env);",
+                  "    AndroidContext(JNIEnv *env);\n    AndroidContext(JNIEnv *env, jobject peerInstance, jobject groupInstance, bool screencast);", 1)
+          declarations = """
+              jobject getJavaInstance();
+              jobject getJavaPeerInstance();
+              jobject getJavaGroupInstance();
+              void setJavaPeerInstance(JNIEnv *env, jobject instance);
+              void setJavaGroupInstance(JNIEnv *env, jobject instance);
+              std::vector<std::shared_ptr<BroadcastPartTask>> audioStreamTasks;
+              std::vector<std::shared_ptr<BroadcastPartTask>> videoStreamTasks;
+              std::vector<std::shared_ptr<RequestMediaChannelDescriptionTask>> descriptionTasks;
+          """
+          if "getJavaPeerInstance()" not in context_source:
+              context_source = context_source.replace(
+                  "    jclass getJavaCapturerClass();",
+                  "    jclass getJavaCapturerClass();\n" + declarations, 1)
+          fields = """
+              jobject javaPeerInstance = nullptr;
+              jobject javaGroupInstance = nullptr;
+          """
+          if "javaPeerInstance = nullptr" not in context_source:
+              context_source = context_source.replace(
+                  "    jobject javaCapturer = nullptr;",
+                  "    jobject javaCapturer = nullptr;\n" + fields, 1)
+          context_h.write_text(context_source)
+
+          context_cpp = root / "AndroidContext.cpp"
+          cpp_source = context_cpp.read_text()
+          constructor_marker = "AndroidContext::~AndroidContext() {"
+          if "AndroidContext::AndroidContext(JNIEnv *env, jobject peerInstance" not in cpp_source:
+              if constructor_marker not in cpp_source:
+                  raise SystemExit("Could not locate AndroidContext constructor insertion point")
+              overload = """AndroidContext::AndroidContext(JNIEnv *env, jobject peerInstance, jobject groupInstance, bool screencast)
+              : AndroidContext(env) {
+              (void) screencast;
+              if (peerInstance) javaPeerInstance = env->NewGlobalRef(peerInstance);
+              if (groupInstance) javaGroupInstance = env->NewGlobalRef(groupInstance);
+          }
+
+          """
+              cpp_source = cpp_source.replace(constructor_marker, overload + constructor_marker, 1)
+          cleanup_marker = "    env->DeleteGlobalRef(VideoCameraCapturerClass);"
+          if "env->DeleteGlobalRef(javaPeerInstance)" not in cpp_source:
+              if cleanup_marker not in cpp_source:
+                  raise SystemExit("Could not locate AndroidContext cleanup insertion point")
+              cpp_source = cpp_source.replace(cleanup_marker, cleanup_marker + """
+              if (javaPeerInstance) env->DeleteGlobalRef(javaPeerInstance);
+              if (javaGroupInstance) env->DeleteGlobalRef(javaGroupInstance);
+          """, 1)
+          if "AndroidContext::getJavaPeerInstance()" not in cpp_source:
+              end_marker = "jclass AndroidContext::getJavaCapturerClass() {"
+              if end_marker not in cpp_source:
+                  raise SystemExit("Could not locate AndroidContext accessor insertion point")
+              accessors = """jobject AndroidContext::getJavaInstance() {
+              return javaPeerInstance ? javaPeerInstance : javaGroupInstance;
+          }
+
+          jobject AndroidContext::getJavaPeerInstance() {
+              return javaPeerInstance;
+          }
+
+          jobject AndroidContext::getJavaGroupInstance() {
+              return javaGroupInstance;
+          }
+
+          void AndroidContext::setJavaPeerInstance(JNIEnv *env, jobject instance) {
+              if (javaPeerInstance) env->DeleteGlobalRef(javaPeerInstance);
+              javaPeerInstance = instance ? env->NewGlobalRef(instance) : nullptr;
+          }
+
+          void AndroidContext::setJavaGroupInstance(JNIEnv *env, jobject instance) {
+              if (javaGroupInstance) env->DeleteGlobalRef(javaGroupInstance);
+              javaGroupInstance = instance ? env->NewGlobalRef(instance) : nullptr;
+          }
+
+          """
+              cpp_source = cpp_source.replace(end_marker, accessors + end_marker, 1)
+          context_cpp.write_text(cpp_source)
           replace_once("AndroidInterface.cpp",
               "std::function<void(VideoState)> stateUpdated, std::shared_ptr<PlatformContext> platformContext) {",
               "std::function<void(VideoState)> stateUpdated, std::function<void(PlatformCaptureInfo)> captureInfoUpdated, std::shared_ptr<PlatformContext> platformContext, std::pair<int, int> &outResolution) {")
