@@ -96,7 +96,7 @@ jobs:
           def replace_once(path, old_text, new_text):
               p = root / path
               source = p.read_text()
-              if new_text in source:
+              if new_text and new_text in source:
                   return
               if old_text not in source:
                   raise SystemExit(f"Could not patch tgcalls Android API in {p}")
