@@ -78,6 +78,18 @@ jobs:
               if marker not in nullability_source:
                   raise SystemExit("Could not locate Abseil nullability header insertion point")
               nullability.write_text(nullability_source.replace(marker, compatibility_alias + marker, 1))
+
+          # WebRTC places ABSL_DEPRECATED after the return type. The modern
+          # C++ [[deprecated]] attribute is not valid in that position;
+          # use the GNU attribute spelling accepted by Clang there.
+          attributes = pathlib.Path("TMessagesProj/jni/third_party/absl/absl/base/attributes.h")
+          attributes_source = attributes.read_text()
+          modern = "#define ABSL_DEPRECATED(message) [[deprecated(message)]]"
+          compatible = "#define ABSL_DEPRECATED(message) __attribute__((deprecated(message)))"
+          if modern in attributes_source:
+              attributes.write_text(attributes_source.replace(modern, compatible, 1))
+          elif compatible not in attributes_source:
+              raise SystemExit("Could not locate Abseil ABSL_DEPRECATED definition")
           PY
 
       - name: Set up Java
